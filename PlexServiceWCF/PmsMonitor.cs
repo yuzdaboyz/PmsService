@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using PlexServiceCommon;
+using System.Management;
 
 namespace PlexServiceWCF
 {
@@ -357,7 +358,26 @@ namespace PlexServiceWCF
         #endregion
 
         #region End methods
-
+        ///Kill process tree
+        private static void KillTree(int pid)
+        {
+            ManagementObjectSearcher searcher = new ManagementObjectSearcher
+              ("Select * From Win32_Process Where ParentProcessID=" + pid);
+            ManagementObjectCollection moc = searcher.Get();
+            foreach (ManagementObject mo in moc)
+            {
+                KillTree(Convert.ToInt32(mo["ProcessID"]));
+            }
+            try
+            {
+                Process proc = Process.GetProcessById(pid);
+                proc.Kill();
+            }
+            catch (ArgumentException)
+            {
+                // Process already exited.
+            }
+        }
         /// <summary>
         /// Kill the plex process
         /// </summary>
@@ -368,7 +388,9 @@ namespace PlexServiceWCF
                 OnPlexStatusChange(this, new StatusChangeEventArgs("Killing Plex."));
                 try
                 {
-                    _plex.Kill();
+                    // _plex.Kill();
+                    //Kill process tree
+                    KillTree(_plex.Id);
                 }
                 catch { }
             }
